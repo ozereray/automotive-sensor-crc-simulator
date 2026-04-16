@@ -1,0 +1,242 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SDV Sensor CRC Dashboard</title>
+    <style>
+      /* CSS Variablen für ein modernes Dark-Mode Design (Automotive Style) */
+      :root {
+        --bg-color: #0f1115;
+        --panel-bg: #1a1d24;
+        --text-main: #e2e8f0;
+        --text-muted: #94a3b8;
+        --accent: #3b82f6;
+        --success: #10b981;
+        --danger: #ef4444;
+        --font-main: "Inter", system-ui, -apple-system, sans-serif;
+      }
+
+      body {
+        background-color: var(--bg-color);
+        color: var(--text-main);
+        font-family: var(--font-main);
+        margin: 0;
+        padding: 40px 20px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .container {
+        max-width: 800px;
+        width: 100%;
+      }
+
+      h1 {
+        font-weight: 400;
+        letter-spacing: -0.5px;
+        margin-bottom: 5px;
+      }
+
+      .subtitle {
+        color: var(--text-muted);
+        margin-bottom: 30px;
+        font-size: 0.95rem;
+      }
+
+      .panel {
+        background-color: var(--panel-bg);
+        border: 1px solid #2e3440;
+        border-radius: 8px;
+        padding: 25px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .control-group {
+        display: flex;
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+
+      .input-box {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+      }
+
+      label {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      input {
+        background-color: #0f1115;
+        border: 1px solid #374151;
+        color: var(--text-main);
+        padding: 10px 12px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 1rem;
+      }
+
+      input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      button {
+        background-color: var(--text-main);
+        color: var(--bg-color);
+        border: none;
+        padding: 12px 24px;
+        border-radius: 4px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        width: 100%;
+      }
+
+      button:hover {
+        background-color: #cbd5e1;
+        transform: translateY(-1px);
+      }
+
+      .data-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 15px 0;
+        border-bottom: 1px solid #2e3440;
+      }
+
+      .data-row:last-child {
+        border-bottom: none;
+      }
+
+      .data-label {
+        color: var(--text-muted);
+      }
+
+      .data-value {
+        font-family: monospace;
+        font-size: 1.1rem;
+        letter-spacing: 2px;
+      }
+
+      .status-banner {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 4px;
+        text-align: center;
+        font-weight: 600;
+        letter-spacing: 0.5px;
+        display: none;
+      }
+
+      .status-success {
+        background-color: rgba(16, 185, 129, 0.1);
+        color: var(--success);
+        border: 1px solid var(--success);
+        display: block;
+      }
+
+      .status-error {
+        background-color: rgba(239, 68, 68, 0.1);
+        color: var(--danger);
+        border: 1px solid var(--danger);
+        display: block;
+      }
+
+      .highlight-error {
+        color: var(--danger);
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Automotive Sensor-Daten Simulator</h1>
+      <div class="subtitle">
+        Echtzeit-Simulation für CRC-Fehlererkennung in Software-Defined Vehicles
+        (SDVs)
+      </div>
+
+      <div class="panel">
+        <div class="control-group">
+          <div class="input-box">
+            <label>Sensor Nutzdaten (Binär)</label>
+            <input type="text" id="sensorData" value="1001110110101100" />
+          </div>
+          <div class="input-box" style="flex: 0.5">
+            <label>Burst-Fehler Länge</label>
+            <input type="number" id="errorLength" value="3" min="0" max="10" />
+          </div>
+        </div>
+        <button onclick="runSimulation()">SIMULATION STARTEN</button>
+      </div>
+
+      <div class="panel">
+        <div class="data-row">
+          <span class="data-label">Originaler Frame:</span>
+          <span class="data-value" id="valOriginal">-</span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">Gesendet (Encoded):</span>
+          <span class="data-value" id="valEncoded">-</span>
+        </div>
+        <div class="data-row">
+          <span class="data-label">Empfangen (mit EMI):</span>
+          <span class="data-value" id="valReceived">-</span>
+        </div>
+
+        <div id="statusBanner" class="status-banner"></div>
+      </div>
+    </div>
+
+    <script>
+      async function runSimulation() {
+        const dataInput = document.getElementById("sensorData").value;
+        const errorLenInput = document.getElementById("errorLength").value;
+
+        // API-Anfrage an den FastAPI-Server senden
+        const response = await fetch(
+          `/api/simulate?data=${dataInput}&error_length=${errorLenInput}`,
+        );
+        const result = await response.json();
+
+        // Benutzeroberfläche (UI) mit den empfangenen Daten aktualisieren
+        document.getElementById("valOriginal").innerText = result.sensor_data;
+        document.getElementById("valEncoded").innerText = result.encoded_frame;
+
+        // Empfangene Daten formatieren: Fehlerhafte Bits werden rot hervorgehoben
+        let receivedHtml = "";
+        for (let i = 0; i < result.received_frame.length; i++) {
+          if (result.received_frame[i] !== result.encoded_frame[i]) {
+            receivedHtml += `<span class="highlight-error">${result.received_frame[i]}</span>`;
+          } else {
+            receivedHtml += result.received_frame[i];
+          }
+        }
+        document.getElementById("valReceived").innerHTML = receivedHtml;
+
+        // Status-Banner basierend auf der CRC-Prüfung aktualisieren
+        const banner = document.getElementById("statusBanner");
+        if (result.is_valid) {
+          banner.className = "status-banner status-success";
+          banner.innerText =
+            "✅ DATEN VERIFIZIERT: Kein Fehler erkannt. (Erfolgreiche Übertragung)";
+        } else {
+          banner.className = "status-banner status-error";
+          banner.innerText =
+            "❌ FRAME VERWORFEN: CRC-Fehler erkannt! (Daten sind beschädigt)";
+        }
+      }
+
+      // Führt automatisch eine Simulation durch, sobald die Seite geladen wird
+      window.onload = runSimulation;
+    </script>
+  </body>
+</html>
