@@ -2,14 +2,29 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 import uvicorn
+import os
+import sys
+
+# --- VERCEL PATH- & IMPORT-KORREKTUREN ---
+# Ermittelt das absolute Verzeichnis dieser Datei (src), damit Vercel die Pfade korrekt auflöst.
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Fügt das src-Verzeichnis zum Python-Pfad hinzu, damit lokale Module gefunden werden.
+sys.path.append(BASE_DIR)
+
+# Definiert den absoluten Pfad zum templates-Ordner für Jinja2.
+templates_dir = os.path.join(BASE_DIR, "templates")
+# ----------------------------------------
+
+# Nun können die lokalen Module sicher importiert werden
 from crc_engine import CRCEngine
 from channel import ChannelSimulator
 
 # Initialisierung der FastAPI-Anwendung für das Dashboard
 app = FastAPI(title="Automotive Sensor Simulator")
 
-# Konfiguration der Template-Engine (Jinja2) für das Frontend
-templates = Jinja2Templates(directory="templates")
+# Konfiguration der Template-Engine (Jinja2) für das Frontend mit dem absoluten Pfad
+templates = Jinja2Templates(directory=templates_dir)
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard(request: Request):
